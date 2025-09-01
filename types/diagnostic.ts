@@ -61,6 +61,8 @@ export interface ActionItem {
   task: string;
   competency: string;
   complexity: number;
+  // New flexible storage for selected months in format 'YYYY-MM'
+  months?: string[];
   july: boolean;
   august: boolean;
   september: boolean;

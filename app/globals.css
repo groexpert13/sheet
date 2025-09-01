@@ -1,6 +1,8 @@
+/* stylelint-disable at-rule-no-unknown */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */
 
 :root {
   --foreground-rgb: 0, 0, 0;
@@ -72,11 +74,17 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
+/* Base styles without @apply to avoid IDE warnings */
+*, ::before, ::after { border-color: hsl(var(--border)); }
+body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+
+/* Google Translate UX cleanup */
+/* Hide top banner injected by Google to avoid layout shift */
+.goog-te-banner-frame.skiptranslate { display: none !important; }
+body { top: 0 !important; }
+/* Hide tooltip balloon */
+#goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
+/* Keep the default gadget hidden; we control via our UI */
+#google_translate_element { display: none !important; }
+/* Prevent translate from breaking inline layout for skiptranslate */
+.skiptranslate { display: contents !important; }

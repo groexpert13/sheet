@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Target, User, Package, BarChart3, FileText, Wrench, DollarSign, Rocket } from 'lucide-react';
+import { ChevronRight, Target, User, Package, BarChart3, FileText, Wrench, DollarSign, Rocket, Download, LogOut } from 'lucide-react';
 import IntroSection from '@/components/sections/IntroSection';
 import ProductLineSection from '@/components/sections/ProductLineSection';
 import CompetencySection from '@/components/sections/CompetencySection';
@@ -16,6 +16,7 @@ import ActionPlanSection from '@/components/sections/ActionPlanSection';
 import CompetencyWheel, { CompetencyWheelHandle } from '@/components/CompetencyWheel';
 import { DiagnosticData, IntroData, ProductLineData, CompetencyData, ToolsData, FinanceData, ActionItem } from '@/types/diagnostic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const sections = [
   { id: 'intro', title: 'Знакомство', icon: User, description: 'Базовая информация о вас и вашем проекте' },
@@ -58,19 +59,44 @@ export default function Home() {
 
     const saved = localStorage.getItem('diagnostic-data');
     if (saved) {
-      setDiagnosticData(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        // Normalize legacy/incorrect saved shape where plan was accidentally merged into an object
+        if (parsed && parsed.plan && !Array.isArray(parsed.plan)) {
+          parsed.plan = Object.values(parsed.plan);
+        }
+        setDiagnosticData(parsed);
+      } catch {
+        // ignore parse errors
+      }
     }
   }, [router]);
+
+  // Align <html lang> with saved language for accessibility/SEO hints
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('site-lang');
+      if (saved) {
+        document.documentElement.setAttribute('lang', saved);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('diagnostic-data', JSON.stringify(diagnosticData));
   }, [diagnosticData]);
 
   const updateData = (section: string, data: any) => {
-    setDiagnosticData(prev => ({
-      ...prev,
-      [section]: { ...prev[section as keyof DiagnosticData], ...data }
-    }));
+    setDiagnosticData(prev => {
+      if (section === 'plan') {
+        // plan is an array of ActionItem; replace entirely
+        return { ...prev, plan: Array.isArray(data) ? data : [] };
+      }
+      return {
+        ...prev,
+        [section]: { ...(prev as any)[section], ...data }
+      } as DiagnosticData;
+    });
   };
 
   const markSectionComplete = (index: number) => {
@@ -206,20 +232,33 @@ export default function Home() {
       })
       .join('');
 
-    // Plan rows: use ActionItem fields
+    // Plan rows: prefer new months[] (YYYY-MM), fallback to legacy boolean flags
+    const ruMonthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const formatYm = (ym: string) => {
+      const [y, m] = String(ym).split('-');
+      const idx = Math.max(0, Math.min(11, (Number(m) || 1) - 1));
+      const name = ruMonthNames[idx] || m;
+      return `${name} ${y}`;
+    };
     const planRows = (dd.plan || [])
       .map((it: any, i: number) => {
-        const months: string[] = [];
-        if (it.july) months.push('Июль');
-        if (it.august) months.push('Август');
-        if (it.september) months.push('Сентябрь');
+        let monthsText = '';
+        if (Array.isArray(it.months) && it.months.length) {
+          monthsText = it.months.map((m: string) => formatYm(m)).join(', ');
+        } else {
+          const legacy: string[] = [];
+          if (it.july) legacy.push('Июль');
+          if (it.august) legacy.push('Август');
+          if (it.september) legacy.push('Сентябрь');
+          monthsText = legacy.join(', ');
+        }
         return `<tr>
           <td>${i+1}</td>
           <td>${it.task || ''}</td>
           <td>${it.priority ?? ''}</td>
           <td>${it.competency || ''}</td>
           <td>${it.complexity ?? ''}</td>
-          <td>${months.join(', ')}</td>
+          <td>${monthsText}</td>
         </tr>`;
       })
       .join('');
@@ -276,9 +315,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+      <header className="bg-white/80 backdrop-blur supports-[backdrop-filter]:backdrop-blur border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-3 md:gap-0">
+            {/* Left: logo + title */}
             <div className="flex items-center space-x-4">
               <Target className="h-8 w-8 text-blue-600" />
               <div>
@@ -286,28 +326,33 @@ export default function Home() {
                 <p className="text-sm text-gray-600">Пошаговый разбор вашего маркетинга</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Badge className={`${achievement.color} text-white`}>
-                {achievement.level}
-              </Badge>
-              <div className="text-right">
-                <p className="text-sm font-medium">{Math.round(progress)}% завершено</p>
-                <Progress value={progress} className="w-32" />
+            {/* Center: status + progress */}
+            <div className="flex items-center justify-center gap-4">
+              <Badge className={`${achievement.color} text-white`}>{achievement.level}</Badge>
+              <div className="flex items-center gap-3">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-semibold text-gray-900">{Math.round(progress)}%</span>
+                  <span className="text-xs text-gray-500">завершено</span>
+                </div>
+                <Progress value={progress} className="w-40 h-2 rounded-full" />
               </div>
-              <Button
-                variant="default"
-                onClick={downloadPdf}
-              >
-                Скачать PDF
+            </div>
+            {/* Right: actions */}
+            <div className="flex items-center justify-end space-x-3">
+              <LanguageSwitcher />
+              <Button variant="outline" onClick={downloadPdf}>
+                <Download className="mr-2 h-4 w-4" /> PDF
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
+                size="icon"
+                aria-label="Выйти"
                 onClick={() => {
                   localStorage.removeItem('authUser');
                   router.replace('/auth');
                 }}
               >
-                Выйти
+                <LogOut className="h-5 w-5" />
               </Button>
             </div>
           </div>
