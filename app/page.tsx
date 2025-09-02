@@ -92,6 +92,12 @@ export default function Home() {
 
   const doLocalReset = () => {
     try { localStorage.removeItem('diagnostic-data'); } catch {}
+    // Also clear AI assistant chat history for current account
+    try {
+      const raw = localStorage.getItem('authUser');
+      const email = raw ? (JSON.parse(raw).email as string | undefined) : undefined;
+      if (email) localStorage.removeItem(`ai-chat:${email}`);
+    } catch {}
     setDiagnosticData(makeInitialDiagnostic());
     setCompletedSections(new Array(sections.length).fill(false));
     setCurrentSection(0);

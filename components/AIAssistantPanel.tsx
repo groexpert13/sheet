@@ -90,6 +90,30 @@ export default function AIAssistantPanel() {
     return () => clearInterval(t);
   }, []);
 
+  const resetChat = useCallback(() => {
+    try { localStorage.removeItem(storageKey(email)); } catch {}
+    setMessages([]);
+  }, [email, setMessages]);
+
+  // Cross-tab and in-tab reset sync for AI chat
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'global-reset') resetChat();
+    };
+    window.addEventListener('storage', onStorage);
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('app-events');
+      bc.onmessage = (ev) => {
+        if (ev?.data?.type === 'reset') resetChat();
+      };
+    } catch {}
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      try { bc?.close(); } catch {}
+    };
+  }, [resetChat]);
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || sending) return;
