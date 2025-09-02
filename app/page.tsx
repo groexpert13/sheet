@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Target, User, Package, BarChart3, FileText, Wrench, DollarSign, Rocket, Download, LogOut } from 'lucide-react';
+import { ChevronRight, Target, User, Package, BarChart3, FileText, Wrench, DollarSign, Rocket, Download, LogOut, RotateCcw } from 'lucide-react';
 import IntroSection from '@/components/sections/IntroSection';
 import ProductLineSection from '@/components/sections/ProductLineSection';
 import CompetencySection from '@/components/sections/CompetencySection';
@@ -16,6 +16,7 @@ import ActionPlanSection from '@/components/sections/ActionPlanSection';
 import CompetencyWheel, { CompetencyWheelHandle } from '@/components/CompetencyWheel';
 import { DiagnosticData, IntroData, ProductLineData, CompetencyData, ToolsData, FinanceData, ActionItem } from '@/types/diagnostic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const sections = [
@@ -49,6 +50,63 @@ export default function Home() {
 
   const [completedSections, setCompletedSections] = useState<boolean[]>(new Array(sections.length).fill(false));
   const [wheelOpen, setWheelOpen] = useState(false);
+
+  // Helper to return initial diagnostic shape
+  const makeInitialDiagnostic = (): DiagnosticData => ({
+    intro: {},
+    products: {},
+    competency: {
+      traffic: 1,
+      expertise: 1,
+      sales: 1,
+      content: 1,
+      product: 1,
+      satisfaction: 1,
+    },
+    tools: {},
+    finance: {},
+    plan: [],
+  });
+
+  // Cross-tab reset handling
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'global-reset') {
+        doLocalReset();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('app-events');
+      bc.onmessage = (ev) => {
+        if (ev?.data?.type === 'reset') doLocalReset();
+      };
+    } catch {}
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      try { bc?.close(); } catch {}
+    };
+  }, []);
+
+  const doLocalReset = () => {
+    try { localStorage.removeItem('diagnostic-data'); } catch {}
+    setDiagnosticData(makeInitialDiagnostic());
+    setCompletedSections(new Array(sections.length).fill(false));
+    setCurrentSection(0);
+  };
+
+  const triggerGlobalReset = () => {
+    // Notify other tabs
+    try {
+      const bc = new BroadcastChannel('app-events');
+      bc.postMessage({ type: 'reset' });
+      bc.close();
+    } catch {}
+    try { localStorage.setItem('global-reset', String(Date.now())); } catch {}
+    // Reset here
+    doLocalReset();
+  };
 
   useEffect(() => {
     const auth = localStorage.getItem('authUser');
@@ -343,6 +401,25 @@ export default function Home() {
               <Button variant="outline" onClick={downloadPdf}>
                 <Download className="mr-2 h-4 w-4" /> PDF
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Сбросить данные">
+                    <RotateCcw className="h-5 w-5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Сбросить все данные?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Это удалит все введённые данные диагностики на всех открытых вкладках. Ваш аккаунт и язык интерфейса останутся без изменений.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="flex justify-end gap-2">
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={triggerGlobalReset}>Сбросить</AlertDialogAction>
+                  </div>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button
                 variant="ghost"
                 size="icon"
