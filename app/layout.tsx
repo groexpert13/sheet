@@ -2,6 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import GoogleTranslateProvider from '@/components/GoogleTranslateProvider';
+import dynamic from 'next/dynamic';
+// Load AI panel only on client to isolate any client-only code
+const AIAssistantPanel = dynamic(() => import('@/components/AIAssistantPanel'), { ssr: false });
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -49,6 +52,8 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
         <GoogleTranslateProvider />
+        {/* Collapsible AI assistant, fixed bottom-right */}
+        <AIAssistantPanel />
       </body>
     </html>
   );
