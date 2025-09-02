@@ -88,3 +88,15 @@ body { top: 0 !important; }
 #google_translate_element { display: none !important; }
 /* Prevent translate from breaking inline layout for skiptranslate */
 .skiptranslate { display: contents !important; }
+
+/* Section transition animations */
+@keyframes slideFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideFadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
+}
+.animate-slide-in { animation: slideFadeIn 260ms ease-out both; }
+.animate-slide-out { animation: slideFadeOut 220ms ease-in both; }

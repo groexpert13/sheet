@@ -50,6 +50,7 @@ export default function Home() {
 
   const [completedSections, setCompletedSections] = useState<boolean[]>(new Array(sections.length).fill(false));
   const [wheelOpen, setWheelOpen] = useState(false);
+  const [sectionAnimClass, setSectionAnimClass] = useState<'animate-slide-in' | 'animate-slide-out'>('animate-slide-in');
 
   // Helper to return initial diagnostic shape
   const makeInitialDiagnostic = (): DiagnosticData => ({
@@ -159,10 +160,27 @@ export default function Home() {
 
   const markSectionComplete = (index: number) => {
     setCompletedSections(prev => {
-      const newCompleted = [...prev];
-      newCompleted[index] = true;
-      return newCompleted;
+      const next = [...prev];
+      next[index] = true;
+      return next;
     });
+  };
+
+  const animateToSection = (nextIndex: number) => {
+    setSectionAnimClass('animate-slide-out');
+    window.setTimeout(() => {
+      setCurrentSection(nextIndex);
+      setSectionAnimClass('animate-slide-in');
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { window.scrollTo(0, 0); }
+    }, 230);
+  };
+
+  const completeAndGoNext = () => {
+    const idx = currentSection;
+    markSectionComplete(idx);
+    if (idx < sections.length - 1) {
+      animateToSection(idx + 1);
+    }
   };
 
   const calculateProgress = () => {
@@ -187,7 +205,7 @@ export default function Home() {
           <IntroSection
             data={diagnosticData.intro}
             updateData={(data: IntroData) => updateData('intro', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       case 'products':
@@ -195,7 +213,7 @@ export default function Home() {
           <ProductLineSection
             data={diagnosticData.products}
             updateData={(data: ProductLineData) => updateData('products', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       case 'competency':
@@ -203,7 +221,7 @@ export default function Home() {
           <CompetencySection
             data={diagnosticData.competency}
             updateData={(data: CompetencyData) => updateData('competency', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       case 'tools':
@@ -211,7 +229,7 @@ export default function Home() {
           <ToolsSection
             data={diagnosticData.tools}
             updateData={(data: ToolsData) => updateData('tools', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       case 'finance':
@@ -219,7 +237,7 @@ export default function Home() {
           <FinanceSection
             data={diagnosticData.finance}
             updateData={(data: FinanceData) => updateData('finance', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       case 'plan':
@@ -227,7 +245,7 @@ export default function Home() {
           <ActionPlanSection
             data={diagnosticData.plan}
             updateData={(data: ActionItem[]) => updateData('plan', data)}
-            onComplete={() => markSectionComplete(currentSection)}
+            onComplete={completeAndGoNext}
           />
         );
       default:
@@ -539,7 +557,7 @@ export default function Home() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-8">
+              <CardContent className={`p-8 ${sectionAnimClass}`}>
                 {renderCurrentSection()}
                 
                 {/* Navigation Buttons */}
